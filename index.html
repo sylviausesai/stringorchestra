@@ -163,10 +163,14 @@ async function addSession(){
    const id=sessionDocId(name);
    const cutoffAt=cutoffTimestamp(date,cutoff);
    if(!cutoffAt || Number.isNaN(cutoffAt.toMillis())) throw new Error('截止時間格式不正確');
+   const writeUser=auth.currentUser;
+   if(!writeUser || writeUser.isAnonymous) throw new Error('寫入當下不是老師 Google 帳號');
+   await writeUser.getIdToken(true);
+   console.log('新增場次寫入 UID：',writeUser.uid,'anonymous:',writeUser.isAnonymous);
    await setDoc(doc(db,'sessions',id),{
      date, name, cutoff, cutoffAt,
      createdAt:serverTimestamp(),
-     createdBy:user.uid
+     createdBy:writeUser.uid
    });
    document.getElementById('sessionName').value='';
    alert('場次新增成功：'+name);
@@ -254,6 +258,6 @@ function render(){
  document.getElementById('sRedeem').textContent=redemptions.length;
  document.getElementById('sessionList').innerHTML=sessions.filter(x=>x.date===today()).map(s=>`<span class="badge">${safe(s.name)}｜截止 ${safe(s.cutoff)}</span>`).join('')||'今天尚未設定場次。';
 }
-initUI(); listenData(); ensureAnonymous();
+initUI(); listenData();
 </script>
 </body></html>
