@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>埔墘國小弦樂團｜練琴補給站</title>
+<style>
+:root{--bg:#f6f2eb;--card:#fff;--ink:#252525;--muted:#777;--accent:#9b6b43;--soft:#eee4d8;--green:#557a64;--red:#a55757}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:28px 22px 18px;max-width:1080px;margin:auto}.eyebrow{font-size:13px;letter-spacing:.16em;color:var(--accent);font-weight:700}
+h1{font-size:32px;margin:7px 0 5px}.sub,.notice{color:var(--muted)}main{max-width:1080px;margin:auto;padding:0 18px 60px}
+.tabs,.filters,.row{display:flex;gap:10px;flex-wrap:wrap}.tabs,.filters{margin:14px 0}.row>*{flex:1}
+button{font:inherit;border:0;border-radius:15px;padding:13px 17px;background:#fff;box-shadow:0 2px 10px #0000000b;cursor:pointer}
+button.active{background:var(--ink);color:#fff}.panel{background:#ffffffb8;border-radius:24px;padding:18px;box-shadow:0 8px 30px #0000000c}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:12px}.student{background:#fff;border:1px solid #eee;border-radius:18px;padding:16px;min-height:145px;display:flex;flex-direction:column;justify-content:space-between}
+.name{font-weight:750;font-size:18px}.meta{font-size:12px;color:var(--muted);margin-top:5px}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.actions button{padding:9px 10px;border-radius:12px;background:var(--soft);box-shadow:none;flex:1}
+.ok{background:#e4efe8!important;color:#315a40}.redeem{background:#f5e7d8!important;color:#79522d}.badge{display:inline-block;padding:5px 9px;border-radius:99px;font-size:12px;background:var(--soft);margin:3px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.stat{background:#fff;border-radius:18px;padding:15px}.stat b{font-size:25px;display:block}.locked{opacity:.5;pointer-events:none}
+input,select{width:100%;font:inherit;padding:12px;border:1px solid #ddd;border-radius:12px;margin:6px 0 12px;background:#fff}
+.admin-card{background:#fff;border-radius:18px;padding:16px;margin:12px 0}.danger{color:var(--red)}.good{color:var(--green);font-weight:700}
+.table-wrap{overflow:auto;max-height:55vh}.att-table{width:100%;border-collapse:collapse;background:#fff}.att-table th,.att-table td{padding:10px;border-bottom:1px solid #eee;text-align:left;white-space:nowrap}.att-table select{margin:0;padding:7px}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:18px;z-index:9}.modal.show{display:flex}.dialog{background:#fff;border-radius:24px;padding:22px;max-width:430px;width:100%}
+@media(max-width:600px){h1{font-size:27px}.summary{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">PUQIAN STRING ORCHESTRA</div><h1>埔墘國小弦樂團 🎻</h1><div class="sub">練琴補給站・115學年度・Firebase 雲端版</div></header>
+<main>
+<div class="tabs">
+<button class="active" data-view="checkin">✓ 練團打卡</button>
+<button data-view="points">⭐ 練琴集點</button>
+<button data-view="redeem">🎁 點數兌換</button>
+<button data-view="admin">⚙️ 老師管理</button>
+</div>
+<div class="summary"><div class="stat"><span>今日打卡</span><b id="sCheck">0</b></div><div class="stat"><span>全團可用總點數</span><b id="sPoints">0</b></div><div class="stat"><span>已兌換筆數</span><b id="sRedeem">0</b></div></div>
+<section class="panel">
+<div class="topbar"><div class="filters" id="filters"></div><div class="notice" id="viewHint"></div></div>
+<div class="grid" id="grid"></div>
+<div id="adminBox" style="display:none">
+  <div id="loginBox" class="admin-card">
+    <h2>🔐 老師管理</h2>
+    <p class="notice">老師管理功能需使用指定 Google 帳號登入。</p>
+    <button id="loginBtn">使用 Google 登入</button>
+    <div id="authInfo" class="notice" style="margin-top:10px"></div>
+  </div>
+  <div id="teacherTools" style="display:none">
+    <div class="admin-card">
+      <div class="row"><div><h2 style="margin:0">老師管理</h2><div id="teacherName" class="notice"></div></div><button id="logoutBtn">登出</button></div>
+    </div>
+    <div class="admin-card">
+      <h3>今日課堂場次</h3>
+      <div class="row"><input id="sessionName" placeholder="例如：第一堂"><input id="sessionCutoff" type="time"></div>
+      <button id="addSession">＋ 新增今日場次</button>
+      <div id="sessionList" class="notice" style="margin-top:10px"></div>
+    </div>
+    <div class="admin-card">
+      <div class="row"><button id="attendanceBtn">📋 學期出席紀錄</button><button id="ledgerBtn">⭐ 點數／兌換明細</button></div>
+      <div id="adminTable" style="margin-top:14px"></div>
+    </div>
+  </div>
+</div>
+</section>
+</main>
+
+<div class="modal" id="modal"><div class="dialog"><h2 id="mTitle"></h2><div id="mBody"></div><div class="row"><button id="mCancel">取消</button><button id="mConfirm" class="ok">確認</button></div></div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB5zRSBaMCVm6Kd-FAi4mzb7OS0Grv7YMQ",
+  authDomain: "puqian-string-orchestra.firebaseapp.com",
+  projectId: "puqian-string-orchestra",
+  storageBucket: "puqian-string-orchestra.firebasestorage.app",
+  messagingSenderId: "554274582810",
+  appId: "1:554274582810:web:093856b69c8e50096ebca3"
+};
+const app=initializeApp(firebaseConfig), auth=getAuth(app), db=getFirestore(app);
+const STUDENTS={"精進班":["林芊靜","歐芯嫚","黃黛蒨","張芷曼","孔紀淵","陳宣穎","林采霓","張鈺楷","陳相如","許巧媛","詹鎔瑄","陳禹辰","張宇程","顏語婕","洪嬡晨","吳郁微","張愷芯","吳儀君","徐苡甯","詹心恬","卓澔威","凃嘉睿","石芷寧","張若皙","鄭宗朗","詹佾恩","劉韋頡"],"進階班":["薛涵云","余雅緹","李愷勛","鄧閎睿","余采綸","孫芷榆","王梓芸","洪紹恩","林宥丞"],"基礎班":["吳姍霓","張允恒","吳芯妤","林士翔"]};
+const allStudents=()=>Object.entries(STUDENTS).flatMap(([cls,names],ci)=>names.map((name,i)=>({id:`c${ci+1}s${String(i+1).padStart(2,'0')}`,name,cls})));
+const byId=Object.fromEntries(allStudents().map(s=>[s.id,s]));
+const today=()=>new Date().toLocaleDateString('sv-SE');
+const safe=s=>String(s).replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+
+let currentView='checkin', currentClass='全部', sessions=[], attendance=[], practice=[], redemptions=[], teacher=null;
+let unsub=[];
+
+function sessionDocId(name){return `${today()}__${encodeURIComponent(name)}`}
+function attendanceId(sessionId,studentId){return `${sessionId}__${studentId}`}
+function isTeacherUser(u){return !!u && !u.isAnonymous}
+function cutoffTimestamp(date,hm){const [y,m,d]=date.split('-').map(Number),[h,min]=hm.split(':').map(Number);return Timestamp.fromDate(new Date(y,m-1,d,h,min,0,0))}
+function formatTime(ts){return ts?.toDate?ts.toDate().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false}):'—'}
+function punctualCount(studentId){return attendance.filter(a=>a.studentId===studentId && a.status==='準時').length}
+function practicePoints(studentId){return practice.filter(x=>x.studentId===studentId).reduce((a,x)=>a+(x.delta||0),0)}
+function punctualPoints(studentId){return Math.floor(punctualCount(studentId)/5)}
+function redeemed(studentId){return redemptions.filter(x=>x.studentId===studentId).reduce((a,x)=>a+(x.cost||0),0)}
+function balance(studentId){return practicePoints(studentId)+punctualPoints(studentId)-redeemed(studentId)}
+function sessionAttendance(sessionId,studentId){return attendance.find(a=>a.sessionId===sessionId&&a.studentId===studentId)}
+function sessionOpen(s){return s.cutoffAt?.toDate ? new Date()<=s.cutoffAt.toDate() : false}
+
+async function ensureAnonymous(){
+ if(!auth.currentUser) try{await signInAnonymously(auth)}catch(e){console.warn(e); document.getElementById('viewHint').textContent='尚未啟用匿名登入；請依設定步驟完成 Firebase Authentication。'}
+}
+function clearSubs(){unsub.forEach(f=>f());unsub=[]}
+function listenData(){
+ clearSubs();
+ unsub.push(onSnapshot(collection(db,'sessions'),snap=>{sessions=snap.docs.map(d=>({id:d.id,...d.data()}));render()}));
+ unsub.push(onSnapshot(collection(db,'attendance'),snap=>{attendance=snap.docs.map(d=>({id:d.id,...d.data()}));render()}));
+ unsub.push(onSnapshot(collection(db,'practiceLedger'),snap=>{practice=snap.docs.map(d=>({id:d.id,...d.data()}));render()}));
+ unsub.push(onSnapshot(collection(db,'redemptions'),snap=>{redemptions=snap.docs.map(d=>({id:d.id,...d.data()}));render()}));
+}
+
+onAuthStateChanged(auth,u=>{
+ teacher=isTeacherUser(u)?u:null;
+ document.getElementById('teacherTools').style.display=teacher?'block':'none';
+ document.getElementById('loginBtn').style.display=teacher?'none':'inline-block';
+ document.getElementById('teacherName').textContent=teacher?`${teacher.displayName||teacher.email}｜UID：${teacher.uid}`:'';
+ document.getElementById('authInfo').textContent=teacher?'老師帳號已登入。':'';
+ if(!u) ensureAnonymous();
+ render();
+});
+
+document.getElementById('loginBtn').onclick=async()=>{
+ try{
+   if(auth.currentUser?.isAnonymous) await signOut(auth);
+   const r=await signInWithPopup(auth,new GoogleAuthProvider());
+   teacher=r.user;
+   render();
+ }catch(e){alert('Google 登入失敗：'+e.message); ensureAnonymous()}
+};
+document.getElementById('logoutBtn').onclick=async()=>{await signOut(auth);await ensureAnonymous()};
+document.getElementById('mCancel').onclick=()=>document.getElementById('modal').classList.remove('show');
+
+function initUI(){
+ const f=document.getElementById('filters');
+ ['全部',...Object.keys(STUDENTS)].forEach(c=>{const b=document.createElement('button');b.textContent=c;b.onclick=()=>{currentClass=c;render()};f.appendChild(b)});
+ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{currentView=b.dataset.view;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));render()});
+ document.getElementById('addSession').onclick=addSession;
+ document.getElementById('attendanceBtn').onclick=showAttendance;
+ document.getElementById('ledgerBtn').onclick=showLedger;
+}
+async function addSession(){
+ if(!teacher){alert('請先以老師帳號登入');return}
+ const name=document.getElementById('sessionName').value.trim(), cutoff=document.getElementById('sessionCutoff').value;
+ if(!name||!cutoff){alert('請輸入場次名稱與截止時間');return}
+ const id=sessionDocId(name);
+ await setDoc(doc(db,'sessions',id),{date:today(),name,cutoff,cutoffAt:cutoffTimestamp(today(),cutoff),createdAt:serverTimestamp(),createdBy:teacher.uid});
+ document.getElementById('sessionName').value='';
+}
+async function doCheckin(student,s){
+ if(!auth.currentUser){await ensureAnonymous()}
+ if(!sessionOpen(s)){alert('這一堂課的打卡時間已截止');return}
+ if(sessionAttendance(s.id,student.id)){return}
+ try{
+   await setDoc(doc(db,'attendance',attendanceId(s.id,student.id)),{
+     studentId:student.id,studentName:student.name,className:student.cls,
+     sessionId:s.id,sessionName:s.name,date:s.date,status:'準時',
+     checkInAt:serverTimestamp(),createdByUid:auth.currentUser.uid
+   });
+ }catch(e){alert('打卡未完成：'+e.message)}
+}
+async function addPractice(student){
+ if(!teacher)return alert('請先登入老師帳號');
+ await addDoc(collection(db,'practiceLedger'),{studentId:student.id,studentName:student.name,delta:1,note:'練琴達標',createdAt:serverTimestamp(),teacherUid:teacher.uid});
+}
+function openRedeem(student){
+ if(!teacher)return alert('請先登入老師帳號');
+ const p=balance(student.id);
+ document.getElementById('mTitle').textContent=`${student.name}｜點數兌換`;
+ document.getElementById('mBody').innerHTML=`<p>目前可用 <b>${p}</b> 點</p><label>兌換項目</label><input id="item" placeholder="例如：飲料、點心、文具、神秘獎品"><label>需要點數</label><input id="cost" type="number" min="1" value="1">`;
+ document.getElementById('modal').classList.add('show');
+ document.getElementById('mConfirm').onclick=async()=>{
+   const item=document.getElementById('item').value.trim(),cost=Number(document.getElementById('cost').value);
+   if(!item||cost<1||cost>balance(student.id))return alert('請確認兌換項目與點數');
+   await addDoc(collection(db,'redemptions'),{studentId:student.id,studentName:student.name,item,cost,createdAt:serverTimestamp(),teacherUid:teacher.uid});
+   document.getElementById('modal').classList.remove('show');
+ };
+}
+async function setStatus(a,status){
+ if(!teacher)return;
+ await updateDoc(doc(db,'attendance',a.id),{status,updatedAt:serverTimestamp(),updatedBy:teacher.uid});
+}
+function showAttendance(){
+ let rows=[...attendance].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(a=>{
+   const opts=['準時','遲到','請假','缺席'].map(x=>`<option ${a.status===x?'selected':''}>${x}</option>`).join('');
+   return `<tr><td>${safe(a.date)}</td><td>${safe(a.sessionName)}</td><td>${safe(a.studentName)}</td><td>${safe(a.className)}</td><td>${formatTime(a.checkInAt)}</td><td><select data-att="${a.id}">${opts}</select></td></tr>`;
+ }).join('');
+ document.getElementById('adminTable').innerHTML=rows?`<div class="table-wrap"><table class="att-table"><thead><tr><th>日期</th><th>場次</th><th>學生</th><th>班別</th><th>打卡</th><th>狀態</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<p class="notice">目前沒有紀錄。</p>';
+ document.querySelectorAll('[data-att]').forEach(el=>el.onchange=()=>setStatus(attendance.find(a=>a.id===el.dataset.att),el.value));
+}
+function showLedger(){
+ const rows=[
+   ...practice.map(x=>({t:x.createdAt,n:x.studentName,type:'練琴點數',delta:x.delta,note:x.note||''})),
+   ...redemptions.map(x=>({t:x.createdAt,n:x.studentName,type:'點數兌換',delta:-x.cost,note:x.item||''}))
+ ].sort((a,b)=>(b.t?.seconds||0)-(a.t?.seconds||0)).map(x=>`<tr><td>${x.t?.toDate?x.t.toDate().toLocaleString('zh-TW'):'—'}</td><td>${safe(x.n)}</td><td>${x.type}</td><td>${x.delta>0?'+':''}${x.delta}</td><td>${safe(x.note)}</td></tr>`).join('');
+ document.getElementById('adminTable').innerHTML=`<p class="notice">準時點數不另存一筆：直接依「準時出席次數 ÷ 5」即時計算，因此老師修正出席狀態後會自動重算。</p><div class="table-wrap"><table class="att-table"><thead><tr><th>時間</th><th>學生</th><th>來源／用途</th><th>點數</th><th>備註</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function card(s){
+ const d=document.createElement('div');d.className='student';
+ const pc=punctualCount(s.id), rem=pc%5, pp=punctualPoints(s.id), pr=practicePoints(s.id), bal=balance(s.id);
+ d.innerHTML=`<div><div class="name">${safe(s.name)}</div><div class="meta">${s.cls}</div><div style="font-size:18px;margin-top:8px">🎁 ${bal} 點</div><div class="meta">🎻 練琴點數 ${pr}　⭐ 準時點數 ${pp}</div><div class="meta">⏰ 準時集點 ${'●'.repeat(rem)}${'○'.repeat(5-rem)}　${rem}/5</div></div><div class="actions"></div>`;
+ const a=d.querySelector('.actions');
+ if(currentView==='checkin'){
+   const ss=sessions.filter(x=>x.date===today()).sort((x,y)=>(x.cutoff||'').localeCompare(y.cutoff||''));
+   if(!ss.length){const b=document.createElement('button');b.textContent='今日尚未開放';b.className='locked';a.appendChild(b)}
+   ss.forEach(sess=>{const rec=sessionAttendance(sess.id,s.id),open=sessionOpen(sess),b=document.createElement('button');b.className='ok';b.textContent=rec?`${sess.name} ✓`:(open?sess.name:`${sess.name} 已截止`);if(rec||!open)b.classList.add('locked');else b.onclick=()=>doCheckin(s,sess);a.appendChild(b)});
+ }
+ if(currentView==='points'){const b=document.createElement('button');b.textContent='＋ 達標 1 點';b.className='ok';if(!teacher)b.classList.add('locked');else b.onclick=()=>addPractice(s);a.appendChild(b)}
+ if(currentView==='redeem'){const b=document.createElement('button');b.textContent='兌換';b.className='redeem';if(!teacher)b.classList.add('locked');else b.onclick=()=>openRedeem(s);a.appendChild(b)}
+ return d;
+}
+function render(){
+ document.querySelectorAll('#filters button').forEach(b=>b.classList.toggle('active',b.textContent===currentClass));
+ const grid=document.getElementById('grid'),admin=document.getElementById('adminBox');
+ admin.style.display=currentView==='admin'?'block':'none';grid.style.display=currentView==='admin'?'none':'grid';
+ const hints={checkin:'每堂課獨立打卡；超過該場次截止時間即停止學生打卡',points:teacher?'老師確認練琴達標後加 1 點':'練琴點數僅能由老師登入後新增',redeem:teacher?'老師可進行點數兌換':'點數兌換僅能由老師登入後操作',admin:'Google 登入後才可使用管理功能'};
+ document.getElementById('viewHint').textContent=hints[currentView];
+ grid.innerHTML='';
+ if(currentView!=='admin') allStudents().filter(s=>currentClass==='全部'||s.cls===currentClass).forEach(s=>grid.appendChild(card(s)));
+ const todayCount=attendance.filter(a=>a.date===today()).length;
+ document.getElementById('sCheck').textContent=todayCount;
+ document.getElementById('sPoints').textContent=allStudents().reduce((a,s)=>a+Math.max(0,balance(s.id)),0);
+ document.getElementById('sRedeem').textContent=redemptions.length;
+ document.getElementById('sessionList').innerHTML=sessions.filter(x=>x.date===today()).map(s=>`<span class="badge">${safe(s.name)}｜截止 ${safe(s.cutoff)}</span>`).join('')||'今天尚未設定場次。';
+}
+initUI(); listenData(); ensureAnonymous();
+</script>
+</body></html>
