@@ -67,7 +67,7 @@ input,select{width:100%;font:inherit;padding:12px;border:1px solid #ddd;border-r
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithRedirect, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -127,15 +127,16 @@ onAuthStateChanged(auth,u=>{
 
 document.getElementById('loginBtn').onclick=async()=>{
  try{
-   // Safari/Chrome may block a popup after awaiting anonymous sign-out.
-   // Redirect login is more reliable for this public iPad/GitHub Pages app.
-   sessionStorage.setItem('teacherLoginPending','1');
-   if(auth.currentUser?.isAnonymous) await signOut(auth);
-   await signInWithRedirect(auth,new GoogleAuthProvider());
+   // Keep the anonymous session in place until the popup is opened.
+   // This preserves the browser's direct user gesture, so the popup is not blocked.
+   const result = await signInWithPopup(auth,new GoogleAuthProvider());
+   if(!isTeacherUser(result.user)){
+     alert('這個 Google 帳號不是指定的老師管理帳號。');
+     await signOut(auth);
+     await ensureAnonymous();
+   }
  }catch(e){
-   sessionStorage.removeItem('teacherLoginPending');
    alert('Google 登入失敗：'+(e.code||'')+' '+e.message);
-   ensureAnonymous();
  }
 };
 document.getElementById('logoutBtn').onclick=async()=>{await signOut(auth);await ensureAnonymous()};
