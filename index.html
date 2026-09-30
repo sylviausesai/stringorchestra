@@ -90,7 +90,8 @@ let unsub=[];
 
 function sessionDocId(name){return `${today()}__${encodeURIComponent(name)}`}
 function attendanceId(sessionId,studentId){return `${sessionId}__${studentId}`}
-function isTeacherUser(u){return !!u && !u.isAnonymous}
+const TEACHER_UID='XAxXqe5whDxEnkXNluoQc2OSwze2';
+function isTeacherUser(u){return !!u && !u.isAnonymous && u.uid===TEACHER_UID}
 function cutoffTimestamp(date,hm){const [y,m,d]=date.split('-').map(Number),[h,min]=hm.split(':').map(Number);return Timestamp.fromDate(new Date(y,m-1,d,h,min,0,0))}
 function formatTime(ts){return ts?.toDate?ts.toDate().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false}):'—'}
 function punctualCount(studentId){return attendance.filter(a=>a.studentId===studentId && a.status==='準時').length}
@@ -143,12 +144,28 @@ function initUI(){
  document.getElementById('ledgerBtn').onclick=showLedger;
 }
 async function addSession(){
- if(!teacher){alert('請先以老師帳號登入');return}
- const name=document.getElementById('sessionName').value.trim(), cutoff=document.getElementById('sessionCutoff').value;
+ if(!teacher){alert('請先以指定的老師 Google 帳號登入');return}
+ const name=document.getElementById('sessionName').value.trim();
+ const cutoff=document.getElementById('sessionCutoff').value;
  if(!name||!cutoff){alert('請輸入場次名稱與截止時間');return}
- const id=sessionDocId(name);
- await setDoc(doc(db,'sessions',id),{date:today(),name,cutoff,cutoffAt:cutoffTimestamp(today(),cutoff),createdAt:serverTimestamp(),createdBy:teacher.uid});
- document.getElementById('sessionName').value='';
+ const btn=document.getElementById('addSession');
+ const oldText=btn.textContent;
+ btn.disabled=true; btn.textContent='新增中…';
+ try{
+   const id=sessionDocId(name);
+   await setDoc(doc(db,'sessions',id),{
+     date:today(), name, cutoff,
+     cutoffAt:cutoffTimestamp(today(),cutoff),
+     createdAt:serverTimestamp(), createdBy:teacher.uid
+   });
+   document.getElementById('sessionName').value='';
+   alert('場次新增成功：'+name);
+ }catch(e){
+   console.error('新增場次失敗',e);
+   alert('新增場次失敗：'+(e?.code||'unknown')+'\n'+(e?.message||e));
+ }finally{
+   btn.disabled=false; btn.textContent=oldText;
+ }
 }
 async function doCheckin(student,s){
  if(!auth.currentUser){await ensureAnonymous()}
