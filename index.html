@@ -87,6 +87,7 @@ const safe=s=>String(s).replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"
 
 let currentView='checkin', currentClass='全部', sessions=[], attendance=[], practice=[], redemptions=[], teacher=null;
 let unsub=[];
+let teacherLoginInProgress=false;
 
 function sessionDocId(name){return `${today()}__${encodeURIComponent(name)}`}
 function attendanceId(sessionId,studentId){return `${sessionId}__${studentId}`}
@@ -119,17 +120,23 @@ onAuthStateChanged(auth,u=>{
  document.getElementById('loginBtn').style.display=teacher?'none':'inline-block';
  document.getElementById('teacherName').textContent=teacher?`${teacher.displayName||teacher.email}｜UID：${teacher.uid}`:'';
  document.getElementById('authInfo').textContent=teacher?'老師帳號已登入。':'';
- if(!u) ensureAnonymous();
+ if(!u && !teacherLoginInProgress) ensureAnonymous();
  render();
 });
 
 document.getElementById('loginBtn').onclick=async()=>{
+ teacherLoginInProgress=true;
  try{
    if(auth.currentUser?.isAnonymous) await signOut(auth);
    const r=await signInWithPopup(auth,new GoogleAuthProvider());
    teacher=r.user;
    render();
- }catch(e){alert('Google 登入失敗：'+e.message); ensureAnonymous()}
+ }catch(e){
+   alert('Google 登入失敗：'+e.message);
+ }finally{
+   teacherLoginInProgress=false;
+   if(!auth.currentUser) await ensureAnonymous();
+ }
 };
 document.getElementById('logoutBtn').onclick=async()=>{await signOut(auth);await ensureAnonymous()};
 document.getElementById('mCancel').onclick=()=>document.getElementById('modal').classList.remove('show');
