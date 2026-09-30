@@ -68,7 +68,7 @@ input,select{width:100%;font:inherit;padding:12px;border:1px solid #ddd;border-r
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, Timestamp, getDocs } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB5zRSBaMCVm6Kd-FAi4mzb7OS0GrvZYM0",
@@ -108,10 +108,11 @@ async function ensureAnonymous(){
 function clearSubs(){unsub.forEach(f=>f());unsub=[]}
 function listenData(){
  clearSubs();
- unsub.push(onSnapshot(collection(db,'sessions'),snap=>{sessions=snap.docs.map(d=>({id:d.id,...d.data()}));render()}));
- unsub.push(onSnapshot(collection(db,'attendance'),snap=>{attendance=snap.docs.map(d=>({id:d.id,...d.data()}));render()}));
- unsub.push(onSnapshot(collection(db,'practiceLedger'),snap=>{practice=snap.docs.map(d=>({id:d.id,...d.data()}));render()}));
- unsub.push(onSnapshot(collection(db,'redemptions'),snap=>{redemptions=snap.docs.map(d=>({id:d.id,...d.data()}));render()}));
+ const err=e=>{console.error('Firestore 讀取失敗',e);document.getElementById('viewHint').textContent='資料讀取失敗，請重新整理頁面。'};
+ unsub.push(onSnapshot(collection(db,'sessions'),snap=>{sessions=snap.docs.map(d=>({id:d.id,...d.data()}));render()},err));
+ unsub.push(onSnapshot(collection(db,'attendance'),snap=>{attendance=snap.docs.map(d=>({id:d.id,...d.data()}));render()},err));
+ unsub.push(onSnapshot(collection(db,'practiceLedger'),snap=>{practice=snap.docs.map(d=>({id:d.id,...d.data()}));render()},err));
+ unsub.push(onSnapshot(collection(db,'redemptions'),snap=>{redemptions=snap.docs.map(d=>({id:d.id,...d.data()}));render()},err));
 }
 
 onAuthStateChanged(auth,u=>{
@@ -120,7 +121,7 @@ onAuthStateChanged(auth,u=>{
  document.getElementById('loginBtn').style.display=teacher?'none':'inline-block';
  document.getElementById('teacherName').textContent=teacher?`${teacher.displayName||teacher.email}｜UID：${teacher.uid}`:'';
  document.getElementById('authInfo').textContent=teacher?'老師帳號已登入。':'';
- if(!u && !teacherLoginInProgress) ensureAnonymous();
+ if(u) listenData(); else { clearSubs(); if(!teacherLoginInProgress) ensureAnonymous(); }
  render();
 });
 
@@ -182,6 +183,22 @@ async function addSession(){
    btn.textContent='＋ 新增今日場次';
  }
 }
+async function deleteSession(sessionId, sessionName){
+ if(!teacher || !auth.currentUser || auth.currentUser.isAnonymous){alert('請先以老師帳號登入');return}
+ const related=attendance.filter(a=>a.sessionId===sessionId);
+ const msg=related.length
+   ? `確定刪除「${sessionName}」嗎？\n\n這個場次已有 ${related.length} 筆打卡紀錄，刪除場次時也會一起清除，無法復原。`
+   : `確定刪除「${sessionName}」嗎？\n\n刪除後無法復原。`;
+ if(!confirm(msg)) return;
+ try{
+   for(const a of related) await deleteDoc(doc(db,'attendance',a.id));
+   await deleteDoc(doc(db,'sessions',sessionId));
+   alert(`已刪除場次：${sessionName}`);
+ }catch(e){
+   console.error('刪除場次失敗',e);
+   alert('刪除場次失敗：'+(e?.code ? e.code+'\n' : '')+(e?.message||String(e)));
+ }
+}
 async function doCheckin(student,s){
  if(!auth.currentUser){await ensureAnonymous()}
  if(!sessionOpen(s)){alert('這一堂課的打卡時間已截止');return}
@@ -192,6 +209,7 @@ async function doCheckin(student,s){
      sessionId:s.id,sessionName:s.name,date:s.date,status:'準時',
      checkInAt:serverTimestamp(),createdByUid:auth.currentUser.uid
    });
+   alert(`${student.name}｜${s.name} 打卡成功！`);
  }catch(e){alert('打卡未完成：'+e.message)}
 }
 async function addPractice(student){
@@ -256,8 +274,9 @@ function render(){
  document.getElementById('sCheck').textContent=todayCount;
  document.getElementById('sPoints').textContent=allStudents().reduce((a,s)=>a+Math.max(0,balance(s.id)),0);
  document.getElementById('sRedeem').textContent=redemptions.length;
- document.getElementById('sessionList').innerHTML=sessions.filter(x=>x.date===today()).map(s=>`<span class="badge">${safe(s.name)}｜截止 ${safe(s.cutoff)}</span>`).join('')||'今天尚未設定場次。';
+ document.getElementById('sessionList').innerHTML=sessions.filter(x=>x.date===today()).map(s=>`<span class="badge">${safe(s.name)}｜截止 ${safe(s.cutoff)}${teacher?` <button class="session-delete" data-id="${safe(s.id)}" data-name="${safe(s.name)}" style="padding:2px 7px;margin-left:5px;border-radius:99px;box-shadow:none;color:var(--red);background:#fff">× 刪除</button>`:''}</span>`).join('')||'今天尚未設定場次。';
+ document.querySelectorAll('.session-delete').forEach(b=>b.onclick=()=>deleteSession(b.dataset.id,b.dataset.name));
 }
-initUI(); listenData();
+initUI(); ensureAnonymous();
 </script>
 </body></html>
