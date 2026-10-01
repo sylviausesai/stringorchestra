@@ -69,7 +69,7 @@ input,select{width:100%;font:inherit;padding:12px;border:1px solid #ddd;border-r
       <div id="sessionList" class="notice" style="margin-top:10px"></div>
     </div>
     <div class="admin-card">
-      <div class="row"><button id="attendanceBtn">📋 學期出席紀錄</button><button id="ledgerBtn">⭐ 點數／兌換明細</button></div>
+      <div class="row"><button id="attendanceBtn">📋 學期出席紀錄</button><button id="sessionRollBtn">📝 場次點名／補登</button><button id="ledgerBtn">⭐ 點數／兌換明細</button></div>
       <div id="adminTable" style="margin-top:14px"></div>
     </div>
   </div>
@@ -162,6 +162,7 @@ function initUI(){
  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{currentView=b.dataset.view;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));render()});
  document.getElementById('addSession').onclick=addSession;
  document.getElementById('attendanceBtn').onclick=showAttendance;
+ document.getElementById('sessionRollBtn').onclick=showSessionRoll;
  document.getElementById('ledgerBtn').onclick=showLedger;
 }
 async function addSession(){
@@ -247,6 +248,33 @@ async function setStatus(a,status){
  if(!teacher)return;
  await updateDoc(doc(db,'attendance',a.id),{status,updatedAt:serverTimestamp(),updatedBy:teacher.uid});
 }
+async function setStudentStatus(session,student,status){
+ if(!teacher || !auth.currentUser || auth.currentUser.isAnonymous){alert('請先登入老師帳號');return}
+ const existing=sessionAttendance(session.id,student.id);
+ try{
+  if(existing){
+   await updateDoc(doc(db,'attendance',existing.id),{status,updatedAt:serverTimestamp(),updatedBy:teacher.uid});
+  }else{
+   await setDoc(doc(db,'attendance',attendanceId(session.id,student.id)),{studentId:student.id,studentName:student.name,className:student.cls,sessionId:session.id,sessionName:session.name,date:session.date,status,checkInAt:serverTimestamp(),createdByUid:teacher.uid});
+  }
+ }catch(e){console.error('補登出席失敗',e);alert('補登出席失敗：'+(e?.code ? e.code+'\n' : '')+(e?.message||String(e)))}
+}
+
+function showSessionRoll(){
+ const ss=sessions.filter(x=>x.date===today()).sort((a,b)=>(a.cutoff||'').localeCompare(b.cutoff||''));
+ if(!ss.length){document.getElementById('adminTable').innerHTML='<p class="notice">今天尚未設定場次。</p>';return}
+ const buttons=ss.map((x,i)=>`<button class="roll-session ${i===0?'active':''}" data-session="${safe(x.id)}">${safe(x.name)}</button>`).join('');
+ document.getElementById('adminTable').innerHTML=`<p class="notice">選擇場次後，可替未打卡學生補登「遲到／請假／缺席」，也可更正已打卡學生的狀態。</p><div class="filters" id="rollSessions">${buttons}</div><div id="rollTable"></div>`;
+ const draw=sessionId=>{
+  const sess=ss.find(x=>x.id===sessionId); if(!sess)return;
+  const rows=allStudents().map(st=>{const rec=sessionAttendance(sess.id,st.id),current=rec?.status||'未打卡';const opts=['未打卡','準時','遲到','請假','缺席'].map(x=>`<option ${current===x?'selected':''} ${x==='未打卡'&&rec?'disabled':''}>${x}</option>`).join('');return `<tr><td>${safe(st.name)}</td><td>${safe(st.cls)}</td><td>${rec?formatTime(rec.checkInAt):'—'}</td><td><select data-roll-student="${st.id}">${opts}</select></td></tr>`}).join('');
+  document.getElementById('rollTable').innerHTML=`<div class="table-wrap"><table class="att-table"><thead><tr><th>學生</th><th>班別</th><th>時間</th><th>狀態</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  document.querySelectorAll('[data-roll-student]').forEach(el=>el.onchange=async()=>{if(el.value==='未打卡')return;await setStudentStatus(sess,byId[el.dataset.rollStudent],el.value)});
+ };
+ document.querySelectorAll('.roll-session').forEach(b=>b.onclick=()=>{document.querySelectorAll('.roll-session').forEach(x=>x.classList.toggle('active',x===b));draw(b.dataset.session)});
+ draw(ss[0].id);
+}
+
 function showAttendance(){
  let rows=[...attendance].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(a=>{
    const opts=['準時','遲到','請假','缺席'].map(x=>`<option ${a.status===x?'selected':''}>${x}</option>`).join('');
